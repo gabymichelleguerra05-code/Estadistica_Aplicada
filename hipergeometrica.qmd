@@ -1,0 +1,373 @@
+---
+title: "Distribución Hipergeométrica"
+author: "Gabriela Michelle Alvarez Guerra"
+lang: es
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+
+Desarrollar como en la demás distribuciones, incluyendo la función de probabilidad, gráficas considerando el cambio en los parámetros de la distribución. Características de la distribución (media y varianza). Un ejemplo con valores simulados y la verificación del teorema central del límite. Tomar como referencia principal el libro Introducción a la Probabilidad de Luis Rincón, páginas 243-247.
+
+# Distribución Hipergeométrica
+
+La distribución hipergeométrica se utiliza cuando se selecciona una muestra de una población finita sin reemplazo.
+
+Para este ejercicio se utilizarán los siguientes valores:
+
+$$
+N=58,\qquad K=30,\qquad n=5.
+$$
+
+Por lo tanto, existen $30$ objetos del primer tipo y:
+
+$$
+N-K=58-30=28
+$$
+
+objetos del segundo tipo.
+
+Además, se cumple:
+
+$$
+n\leq\min\{K,N-K\},
+$$
+
+porque:
+
+$$
+5\leq\min\{30,28\}=28.
+$$
+
+## Función de probabilidad
+
+La función de probabilidad de una variable aleatoria hipergeométrica es:
+
+$$
+P(X=x)=
+\frac{
+\binom{K}{x}
+\binom{N-K}{n-x}
+}{
+\binom{N}{n}
+},
+\qquad x=0,1,\ldots,n.
+$$
+
+Para los parámetros seleccionados:
+
+$$
+P(X=x)=
+\frac{
+\binom{30}{x}
+\binom{28}{5-x}
+}{
+\binom{58}{5}
+},
+\qquad x=0,1,\ldots,5.
+$$
+
+Aquí usaremos la función `dhyper()`, ya que investigando permite calcular estas probabilidades.
+
+```{r}
+#| label: probabilidades-hipergeometrica
+
+N <- 58
+K <- 30
+n <- 5
+
+x <- 0:n
+
+probabilidades <- dhyper(
+  x,
+  K,
+  N - K,
+  n
+)
+
+data.frame(
+  x = x,
+  Probabilidad = probabilidades
+)
+```
+
+## Gráfica de la función de probabilidad
+
+```{r}
+#| label: grafica-hipergeometrica
+#| fig-align: center
+
+library(ggplot2)
+
+datos <- data.frame(
+  x = x,
+  probabilidad = probabilidades
+)
+
+ggplot(
+  datos,
+  aes(x = x, y = probabilidad)
+) +
+  geom_col() +
+  labs(
+    title = "Distribución Hipergeométrica",
+    subtitle = "N = 58, K = 30, n = 5",
+    x = "x",
+    y = "P(X = x)"
+  ) +
+  theme_minimal()
+```
+
+## Esperanza
+
+La esperanza de una variable aleatoria hipergeométrica está dada por:
+
+$$
+E(X)=n\frac{K}{N}.
+$$
+
+Sustituyendo:
+
+$$
+E(X)=5\left(\frac{30}{58}\right).
+$$
+
+
+$$
+E(X)\approx2.5862.
+$$
+
+Esto significa que, en promedio, se espera encontrar aproximadamente $2.59$ objetos del primer tipo en una muestra dada de 5 objetos.
+
+```{r}
+#| label: esperanza-hipergeometrica
+
+media_teorica <- n * (K / N)
+media_teorica
+```
+
+## Varianza
+
+La varianza de la distribución hipergeométrica es:
+
+$$
+\operatorname{Var}(X)
+=
+n\frac{K}{N}
+\frac{N-K}{N}
+\frac{N-n}{N-1}.
+$$
+
+$$
+\operatorname{Var}(X)
+=
+5
+\left(\frac{30}{58}\right)
+\left(\frac{28}{58}\right)
+\left(\frac{58-5}{58-1}\right).
+$$
+
+```{r}
+#| label: varianza-hipergeometrica
+
+varianza_teorica <- n *
+  (K / N) *
+  ((N - K) / N) *
+  ((N - n) / (N - 1))
+
+varianza_teorica
+```
+
+La desviación estándar:
+
+```{r}
+#| label: desviacion-hipergeometrica
+
+desviacion_teorica <- sqrt(varianza_teorica)
+desviacion_teorica
+```
+
+## Simulación
+
+Se realizarán 2500 simulaciones de una variable aleatoria hipergeométrica con los parámetros escogidos anteriormente.
+
+Ahora usaremos la función `rhyper()` porque de igual forma investigando, genera variables aleatorias hipergeométricas.
+
+```{r}
+#| label: simulacion-hipergeometrica
+#| fig-align: center
+
+set.seed(123)
+
+simulacion <- rhyper(
+  2500,
+  K,
+  N - K,
+  n
+)
+
+tabla_simulada <- prop.table(
+  table(
+    factor(
+      simulacion,
+      levels = 0:n
+    )
+  )
+)
+
+comparacion <- data.frame(
+  x = 0:n,
+  Teorica = dhyper(
+    0:n,
+    K,
+    N - K,
+    n
+  ),
+  Simulada = as.numeric(tabla_simulada)
+)
+
+comparacion
+```
+
+
+```{r}
+#| label: comparacion-hipergeometrica
+#| fig-align: center
+
+comparacion_larga <- data.frame(
+  x = rep(comparacion$x, 2),
+  probabilidad = c(
+    comparacion$Teorica,
+    comparacion$Simulada
+  ),
+  tipo = rep(
+    c("Teórica", "Simulada"),
+    each = nrow(comparacion)
+  )
+)
+
+ggplot(
+  comparacion_larga,
+  aes(
+    x = x,
+    y = probabilidad,
+    fill = tipo
+  )
+) +
+  geom_col(
+    position = "dodge"
+  ) +
+  labs(
+    title = "Distribución teórica y simulada",
+    subtitle = "2500 simulaciones",
+    x = "x",
+    y = "Probabilidad",
+    fill = "Distribución"
+  ) +
+  theme_minimal()
+```
+
+Las probabilidades obtenidas mediante la simulación deben ser cercanas a las probabilidades teóricas de la distribución hipergeométrica. Las pequeñas diferencias se deben a la variación aleatoria de la simulación.
+
+## Teorema Central del Límite
+
+Se utilizarán 1000 muestras, cada una formada por 50 variables aleatorias:
+
+$$
+X\sim\operatorname{hipergeo}(58,30,5).
+$$
+
+La media teórica es:
+
+$$
+\mu=E(X)=5\left(\frac{30}{58}\right).
+$$
+
+La varianza es:
+
+$$
+\sigma^2=
+5
+\left(\frac{30}{58}\right)
+\left(\frac{28}{58}\right)
+\left(\frac{53}{57}\right).
+$$
+
+Por el Teorema Central del Límite, para muestras muy grandes:
+
+$$
+\bar X
+\approx
+N\left(
+\mu,
+\frac{\sigma^2}{m}
+\right),
+$$
+
+```{r}
+#| label: tcl-hipergeometrica
+#| fig-align: center
+
+set.seed(123)
+
+numero_muestras <- 1000
+tamano_muestra <- 50
+
+medias <- replicate(
+  numero_muestras,
+  mean(
+    rhyper(
+      tamano_muestra,
+      K,
+      N - K,
+      n
+    )
+  )
+)
+
+datos_tcl <- data.frame(
+  media = medias
+)
+
+ggplot(
+  datos_tcl,
+  aes(x = media)
+) +
+  geom_histogram(
+    aes(y = after_stat(density)),
+    bins = 30
+  ) +
+  stat_function(
+    fun = dnorm,
+    args = list(
+      mean = media_teorica,
+      sd = sqrt(
+        varianza_teorica /
+          tamano_muestra
+      )
+    )
+  ) +
+  labs(
+    title = "Teorema Central del Límite",
+    subtitle = "Distribución Hipergeométrica",
+    x = "Media muestral",
+    y = "Densidad"
+  ) +
+  theme_minimal()
+```
+
+Aunque la variable aleatoria original sigue una distribución hipergeométrica discreta, la distribución de las medias muestrales tiende a acercarse a una distribución normal cuando el tamaño de la muestra es lo suficientemente grande.
+
+## Conclusión
+
+La distribución hipergeométrica sirve para representar la cantidad de objetos de un tipo específico que se obtienen al muestrear sin reemplazo una población finita.
+
+Con los parámetros $N=58$, $K=30$ y $n=5$, se calculó una esperanza aproximada de $2. 5862$. La simulación muestra que, a medida que se incrementa el número de repeticiones, las frecuencias relativas se acercan a las probabilidades teóricas.
+
+Asimismo, la simulación de medias muestrales permite apreciar el comportamiento descrito por el Teorema Central del Límite.
+
