@@ -1,0 +1,250 @@
+---
+title: "Distribución Weibull"
+author: "Gabriela Michelle Alvarez Guerra"
+lang: es
+---
+
+```{=html}
+<style>
+main.content {
+text-align: justify}
+</style>
+```
+
+```{r}
+#| label: setup
+#| echo: false
+#| message: false
+#| warning: false
+
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+library(RColorBrewer)
+library(plotly)
+library(scales)
+library(viridis)
+
+```
+
+Desarrollar como en la demás distribuciones, incluyendo la función de probabilidad y la función de distribución, gráficas considerando el cambio en los parámetros de la distribución. Características de la distribución (media, varianza, moda, cv). Un ejemplo con valores simulados y la verificación del teorema central del límite. Tomar como referencia principal el libro Introducción a la Probabilidad de Luis Rincón, páginas 278-281.
+
+
+La distribución Weibull es una distribución continua utilizada con frecuencia para modelar tiempos de vida y tiempos hasta que ocurre un determinado evento.
+
+En R se parametriza mediante un parámetro de forma y un parámetro de escala:
+
+$$
+X\sim Weibull(\alpha,\lambda),
+$$
+
+con:
+
+$$
+\alpha>0,\qquad \lambda>0.
+$$
+
+Su función de densidad puede expresarse como:
+
+$$
+f(x)=
+\frac{\alpha}{\lambda}
+\left(\frac{x}{\lambda}\right)^{\alpha-1}
+e^{-(x/\lambda)^\alpha},
+\qquad x>0.
+$$
+
+La función de distribución es:
+
+$$
+F(x)=1-e^{-(x/\lambda)^\alpha},
+\qquad x>0.
+$$
+
+```{r}
+alpha <- 5
+lambda <- 2
+
+x <- seq(0, 12, length.out = 500)
+
+datos <- data.frame(
+  x = x,
+  densidad = dweibull(
+    x,
+    shape = alpha,
+    scale = lambda
+  ),
+  acumulada = pweibull(
+    x,
+    shape = alpha,
+    scale = lambda
+  )
+)
+
+ggplot(datos, aes(x = x, y = densidad)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Distribución Weibull",
+    subtitle = "Forma = 5, escala = 2",
+    x = "x",
+    y = "f(x)"
+  ) +
+  theme_minimal()
+
+ggplot(datos, aes(x = x, y = acumulada)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Función de distribución Weibull",
+    x = "x",
+    y = "F(x)"
+  ) +
+  theme_minimal()
+```
+Cambio del parámetro de forma
+
+```{r}
+formas <- c(0.5, 1, 2, 3, 5)
+
+datos_forma <- expand.grid(
+  x = seq(0.01, 10, length.out = 500),
+  forma = formas
+)
+
+datos_forma$densidad <- mapply(
+  dweibull,
+  datos_forma$x,
+  shape = datos_forma$forma,
+  MoreArgs = list(scale = 2)
+)
+
+ggplot(
+  datos_forma,
+  aes(
+    x = x,
+    y = densidad,
+    color = factor(forma)
+  )
+) +
+  geom_line() +
+  labs(
+    title = "Efecto del parámetro de forma",
+    color = "Forma"
+  ) +
+  theme_minimal()
+```
+Media y varianza
+```{r}
+media_weibull <- lambda *
+  gamma(1 + 1 / alpha)
+
+varianza_weibull <- lambda^2 * (
+  gamma(1 + 2 / alpha) -
+  gamma(1 + 1 / alpha)^2
+)
+
+media_weibull
+varianza_weibull
+sqrt(varianza_weibull)
+```
+Moda
+```{r}
+moda_weibull <- lambda *
+  ((alpha - 1) / alpha)^(1 / alpha)
+
+moda_weibull
+```
+Coeficiente de variación
+```{r}
+cv_weibull <- sqrt(varianza_weibull) /
+  media_weibull
+
+cv_weibull
+```
+Simulación
+```{r}
+set.seed(123)
+
+simulacion <- rweibull(
+  2500,
+  shape = alpha,
+  scale = lambda
+)
+
+ggplot(data.frame(x = simulacion), aes(x = x)) +
+  geom_histogram(
+    aes(y = after_stat(density)),
+    bins = 40,
+    fill = "lightblue",
+    color = "black"
+  ) +
+  stat_function(
+    fun = dweibull,
+    args = list(
+      shape = alpha,
+      scale = lambda
+    ),
+    color = "red",
+    linewidth = 1
+  ) +
+  labs(
+    title = "Distribución Weibull simulada",
+    subtitle = "2500 observaciones",
+    x = "x",
+    y = "Densidad"
+  ) +
+  theme_minimal()
+```
+TCL:
+```{r}
+set.seed(123)
+
+tamanos <- c(5, 10, 30, 50, 100)
+N <- 1000
+
+datos_tcl_weibull <- data.frame()
+
+for (n in tamanos) {
+
+  medias <- replicate(
+    N,
+    mean(
+      rweibull(
+        n,
+        shape = alpha,
+        scale = lambda
+      )
+    )
+  )
+
+  temporal <- data.frame(
+    media = medias,
+    n = factor(n)
+  )
+
+  datos_tcl_weibull <- rbind(
+    datos_tcl_weibull,
+    temporal
+  )
+}
+
+ggplot(datos_tcl_weibull, aes(x = media)) +
+  geom_histogram(
+    aes(y = after_stat(density)),
+    bins = 30,
+    fill = "lightblue",
+    color = "black"
+  ) +
+  facet_wrap(~n, scales = "free") +
+  labs(
+    title = "TCL para la distribución Weibull",
+    x = "Media muestral",
+    y = "Densidad"
+  ) +
+  theme_minimal()
+```
+Conclusión:
+A medida que aumenta el tamaño de muestra, las medidas muestrales se concentran alrededor de la esperanza teórica y adquieren una forma aproximadamente normal, verificando numéricamente el TCL. 
+
+
